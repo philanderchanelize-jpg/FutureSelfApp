@@ -6,7 +6,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QTextEdit,
-    QFrame
+    QFrame,
+    QMessageBox
 )
 import sys
 
@@ -139,16 +140,25 @@ reflection_label.setStyleSheet(
     "font-size: 14px; font-weight: bold;"
 )
 
-reflection_text = QLabel(
+reflection_question = QLabel(
     "Who am I becoming through the choices "
     "I'm making today?"
 )
-reflection_text.setStyleSheet(
+reflection_question.setStyleSheet(
     "font-size: 15px;"
 )
 
+reflection_input = QTextEdit()
+reflection_input.setPlaceholderText(
+    "Write your reflection here..."
+)
+
+save_reflection_button = QPushButton("Save Reflection")
+
 reflection_layout.addWidget(reflection_label)
-reflection_layout.addWidget(reflection_text)
+reflection_layout.addWidget(reflection_question)
+reflection_layout.addWidget(reflection_input)
+reflection_layout.addWidget(save_reflection_button)
 
 reflection_frame.setLayout(reflection_layout)
 
@@ -265,11 +275,34 @@ def go_home_from_goals():
 
 
 def save_journal():
+    entry = journal_text.toPlainText().strip()
+    
+    if not entry:
+        QMessageBox.warning(journal_window, "Warning", "Please enter a journal entry.")
+        return
     journal_label.setText("Journal Entry Saved!")
 
 
 def save_goals():
+    entry = goals_text.toPlainText().strip()
+    
+    if not entry:
+        QMessageBox.warning(goals_window, "Warning", "Please enter your goals.")
+        return
     goals_label.setText("Goals Saved!")
+    
+def save_reflection():
+    reflection = reflection_input.toPlainText().strip()
+
+    if not reflection:
+        QMessageBox.warning(
+            home_window,
+            "Warning",
+            "Please write a reflection."
+        )
+        return
+
+    reflection_label.setText("REFLECTION SAVED")
 
 
 # Button Connections
@@ -283,7 +316,7 @@ goals_back_button.clicked.connect(go_home_from_goals)
 
 save_journal_button.clicked.connect(save_journal)
 save_goals_button.clicked.connect(save_goals)
-
+save_reflection_button.clicked.connect(save_reflection)
 
 # Start Application
 
