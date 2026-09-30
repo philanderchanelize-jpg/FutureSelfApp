@@ -6,23 +6,20 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QTextEdit,
+    QLineEdit,
     QFrame,
-    QMessageBox
+    QMessageBox,
+    QCheckBox
 )
 import sys
-
+from datetime import datetime
 
 app = QApplication(sys.argv)
-
-
-# Home Screen
 
 home_window = QWidget()
 home_window.setWindowTitle("Future Self")
 home_window.resize(800, 600)
 
-
-# Header
 home_title = QLabel("Future Self")
 home_title.setStyleSheet(
     "font-size: 32px; font-weight: bold;"
@@ -39,8 +36,6 @@ home_subtitle = QLabel(
 home_subtitle.setStyleSheet(
     "font-size: 16px;"
 )
-
-# Today Section
 
 today_frame = QFrame()
 today_frame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -64,9 +59,6 @@ today_layout.addWidget(today_label)
 today_layout.addWidget(today_info)
 
 today_frame.setLayout(today_layout)
-
-
-# Journal Card
 
 journal_frame = QFrame()
 journal_frame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -93,9 +85,6 @@ journal_card_layout.addWidget(journal_button)
 
 journal_frame.setLayout(journal_card_layout)
 
-
-# Goals Card
-
 goals_frame = QFrame()
 goals_frame.setFrameShape(QFrame.Shape.StyledPanel)
 
@@ -121,14 +110,9 @@ goals_card_layout.addWidget(goals_button)
 
 goals_frame.setLayout(goals_card_layout)
 
-
-# Put Journal and Goals beside each other
 cards_layout = QHBoxLayout()
 cards_layout.addWidget(journal_frame)
 cards_layout.addWidget(goals_frame)
-
-
-# Reflection Section
 
 reflection_frame = QFrame()
 reflection_frame.setFrameShape(QFrame.Shape.StyledPanel)
@@ -162,14 +146,33 @@ reflection_layout.addWidget(save_reflection_button)
 
 reflection_frame.setLayout(reflection_layout)
 
+todo_frame = QFrame()
+todo_frame.setFrameShape(QFrame.Shape.StyledPanel)
 
-# Exit Button
+todo_layout = QVBoxLayout()
 
+todo_label = QLabel("TASKS")
+todo_label.setStyleSheet(
+    "font-size: 14px; font-weight: bold;"
+)
+
+todo_input = QLineEdit()
+todo_input.setPlaceholderText(
+    "Add a task..."
+)
+
+add_task_button = QPushButton("Add Task")
+
+todo_list_layout = QVBoxLayout()
+
+todo_layout.addWidget(todo_label)
+todo_layout.addWidget(todo_input)
+todo_layout.addWidget(add_task_button)
+todo_layout.addLayout(todo_list_layout)
+
+todo_frame.setLayout(todo_layout)
 
 exit_button = QPushButton("Exit")
-
-
-# Home Layout
 
 home_layout = QVBoxLayout()
 
@@ -187,6 +190,10 @@ home_layout.addLayout(cards_layout)
 
 home_layout.addSpacing(20)
 
+home_layout.addWidget(todo_frame)
+
+home_layout.addSpacing(20)
+
 home_layout.addWidget(reflection_frame)
 
 home_layout.addStretch()
@@ -195,13 +202,9 @@ home_layout.addWidget(exit_button)
 
 home_window.setLayout(home_layout)
 
-
-# Journal Screen
-
 journal_window = QWidget()
 journal_window.setWindowTitle("Future Self - Journal")
 journal_window.resize(800, 600)
-
 
 journal_label = QLabel("Today's Reflection")
 
@@ -213,7 +216,6 @@ journal_text.setPlaceholderText(
 save_journal_button = QPushButton("Save Entry")
 journal_back_button = QPushButton("Back")
 
-
 journal_layout = QVBoxLayout()
 
 journal_layout.addWidget(journal_label)
@@ -223,13 +225,9 @@ journal_layout.addWidget(journal_back_button)
 
 journal_window.setLayout(journal_layout)
 
-
-# Goals Screen
-
 goals_window = QWidget()
 goals_window.setWindowTitle("Future Self - Goals")
 goals_window.resize(800, 600)
-
 
 goals_label = QLabel("My Goals")
 
@@ -241,7 +239,6 @@ goals_text.setPlaceholderText(
 save_goals_button = QPushButton("Save Goals")
 goals_back_button = QPushButton("Back")
 
-
 goals_layout = QVBoxLayout()
 
 goals_layout.addWidget(goals_label)
@@ -251,46 +248,60 @@ goals_layout.addWidget(goals_back_button)
 
 goals_window.setLayout(goals_layout)
 
-
-# Navigation Functions
-
 def open_journal():
     home_window.hide()
     journal_window.show()
-
 
 def open_goals():
     home_window.hide()
     goals_window.show()
 
-
 def go_home_from_journal():
     journal_window.hide()
     home_window.show()
-
 
 def go_home_from_goals():
     goals_window.hide()
     home_window.show()
 
-
 def save_journal():
     entry = journal_text.toPlainText().strip()
-    
-    if not entry:
-        QMessageBox.warning(journal_window, "Warning", "Please enter a journal entry.")
-        return
-    journal_label.setText("Journal Entry Saved!")
 
+    if not entry:
+        QMessageBox.warning(
+            journal_window,
+            "Warning",
+            "Please enter a journal entry."
+        )
+        return
+
+    current_time = datetime.now().strftime(
+        "%d %B %Y at %H:%M"
+    )
+
+    journal_label.setText(
+        f"Journal Entry Saved! • {current_time}"
+    )
 
 def save_goals():
     entry = goals_text.toPlainText().strip()
-    
+
     if not entry:
-        QMessageBox.warning(goals_window, "Warning", "Please enter your goals.")
+        QMessageBox.warning(
+            goals_window,
+            "Warning",
+            "Please enter your goals."
+        )
         return
-    goals_label.setText("Goals Saved!")
-    
+
+    current_time = datetime.now().strftime(
+        "%d %B %Y at %H:%M"
+    )
+
+    goals_label.setText(
+        f"Goals Saved! • {current_time}"
+    )
+
 def save_reflection():
     reflection = reflection_input.toPlainText().strip()
 
@@ -302,23 +313,73 @@ def save_reflection():
         )
         return
 
-    reflection_label.setText("REFLECTION SAVED")
+    current_time = datetime.now().strftime(
+        "%d %B %Y at %H:%M"
+    )
 
+    reflection_label.setText(
+        f"REFLECTION SAVED • {current_time}"
+    )
 
-# Button Connections
+def complete_task(state, checkbox):
+    if state:
+        current_time = datetime.now().strftime(
+            "%d %B %Y at %H:%M"
+        )
+
+        task = checkbox.property("task")
+
+        checkbox.setText(
+            f"{task} • Completed {current_time}"
+        )
+    else:
+        task = checkbox.property("task")
+        checkbox.setText(task)
+
+def add_task():
+    task = todo_input.text().strip()
+
+    if not task:
+        QMessageBox.warning(
+            home_window,
+            "Warning",
+            "Please enter a task."
+        )
+        return
+
+    task_checkbox = QCheckBox(task)
+    task_checkbox.setProperty("task", task)
+
+    task_checkbox.stateChanged.connect(
+        lambda state: complete_task(
+            state,
+            task_checkbox
+        )
+    )
+
+    todo_list_layout.addWidget(task_checkbox)
+
+    todo_input.clear()
 
 journal_button.clicked.connect(open_journal)
 goals_button.clicked.connect(open_goals)
 exit_button.clicked.connect(app.quit)
 
-journal_back_button.clicked.connect(go_home_from_journal)
-goals_back_button.clicked.connect(go_home_from_goals)
+journal_back_button.clicked.connect(
+    go_home_from_journal
+)
+
+goals_back_button.clicked.connect(
+    go_home_from_goals
+)
 
 save_journal_button.clicked.connect(save_journal)
 save_goals_button.clicked.connect(save_goals)
-save_reflection_button.clicked.connect(save_reflection)
+save_reflection_button.clicked.connect(
+    save_reflection
+)
 
-# Start Application
+add_task_button.clicked.connect(add_task)
 
 home_window.show()
 
