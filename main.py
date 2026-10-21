@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QStackedWidget,
     QScrollArea,
+    QComboBox,
+    QInputDialog,
 )
 
 APP_DIR = Path(__file__).resolve().parent
@@ -80,9 +82,20 @@ class Store:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
                     created_at TEXT NOT NULL,
-                    completed_at TEXT
+                    completed_at TEXT,
+                    category TEXT NOT NULL DEFAULT 'Short term'
                 )"""
             )
+            goal_columns = {
+                row[1] for row in self.connection.execute(
+                    "PRAGMA table_info(goals)"
+                ).fetchall()
+            }
+            if "category" not in goal_columns:
+                self.connection.execute(
+                    "ALTER TABLE goals ADD COLUMN category TEXT "
+                    "NOT NULL DEFAULT 'Short term'"
+                )
             self.connection.execute(
                 """CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,11 +146,19 @@ class Store:
                 (entry_id,),
             )
 
-    def add_goal(self, title):
+    def add_goal(self, title, category):
         with self.connection:
             self.connection.execute(
-                "INSERT INTO goals (title, created_at) VALUES (?, ?)",
-                (title, timestamp_now()),
+                "INSERT INTO goals (title, created_at, category) "
+                "VALUES (?, ?, ?)",
+                (title, timestamp_now(), category),
+            )
+
+    def set_goal_category(self, goal_id, category):
+        with self.connection:
+            self.connection.execute(
+                "UPDATE goals SET category = ? WHERE id = ?",
+                (category, goal_id),
             )
 
     def goals(self):
@@ -176,6 +197,13 @@ class Store:
             self.connection.execute(
                 "UPDATE tasks SET completed_at = ? WHERE id = ?",
                 (timestamp_now() if completed else None, task_id),
+            )
+
+    def update_task_title(self, task_id, title):
+        with self.connection:
+            self.connection.execute(
+                "UPDATE tasks SET title = ? WHERE id = ?",
+                (title, task_id),
             )
 
     def delete_task(self, task_id):
@@ -320,6 +348,8 @@ class FutureSelfWindow(QMainWindow):
                 background: transparent;
                 color: {c['terracotta']};
                 border: 1px solid #E6C9BC;
+                padding-left: 10px;
+                padding-right: 10px;
             }}
 
             QPushButton#danger:hover {{
@@ -727,11 +757,17 @@ class FutureSelfWindow(QMainWindow):
         )
         self.goal_input.returnPressed.connect(self.add_goal)
 
+        self.goal_category_input = QComboBox()
+        self.goal_category_input.addItems(
+            ["Short term", "Medium term", "Long term"]
+        )
+
         add_button = QPushButton("Add goal")
         add_button.setObjectName("terraButton")
         add_button.clicked.connect(self.add_goal)
 
         row.addWidget(self.goal_input, 1)
+        row.addWidget(self.goal_category_input)
         row.addWidget(add_button)
         add_layout.addLayout(row)
         layout.addWidget(add_card)
@@ -913,9 +949,18 @@ class FutureSelfWindow(QMainWindow):
                     )
                 )
 
+            edit_button = QPushButton("Edit")
+            edit_button.setObjectName("secondary")
+            edit_button.setFixedWidth(68)
+            edit_button.clicked.connect(
+                lambda checked=False, task_id=task["id"],
+                title=task["title"]: self.edit_task(task_id, title)
+            )
+            row.addWidget(edit_button)
+
             delete_button = QPushButton("Remove")
             delete_button.setObjectName("danger")
-            delete_button.setFixedWidth(76)
+            delete_button.setFixedWidth(112)
             delete_button.clicked.connect(
                 lambda checked=False, task_id=task["id"]:
                 self.delete_task(task_id)
@@ -992,6 +1037,16 @@ class FutureSelfWindow(QMainWindow):
     def toggle_task(self, task_id, completed):
         self.store.set_task_completed(task_id, completed)
         self.refresh_home()
+
+    def edit_task(self, task_id, current_title):
+        title, accepted = QInputDialog.getText(
+            self, "Edit task", "Task", text=current_title
+        )
+        title = title.strip()
+
+        if accepted and title:
+            self.store.update_task_title(task_id, title)
+            self.refresh_home()
 
     def delete_task(self, task_id):
         self.store.delete_task(task_id)
@@ -1109,7 +1164,7 @@ class FutureSelfWindow(QMainWindow):
             )
             return
 
-        self.store.add_goal(title)
+        self.store.add_goal(title, self.goal_category_input.currentText())
         self.goal_input.clear()
         self.refresh_goals()
         self.refresh_home()
@@ -1120,6 +1175,7 @@ class FutureSelfWindow(QMainWindow):
 
         self.clear_layout(self.goals_list_layout)
         goals = self.store.goals()
+        categories = ("Short term", "Medium term", "Long term")
 
         if not goals:
             self.goals_list_layout.addWidget(
@@ -1130,38 +1186,61 @@ class FutureSelfWindow(QMainWindow):
                 )
             )
 
-        for goal in goals:
-            row = QHBoxLayout()
-
-            check = QCheckBox(goal["title"])
-            check.setChecked(bool(goal["completed_at"]))
-            check.stateChanged.connect(
-                lambda state, goal_id=goal["id"]:
-                self.toggle_goal(
-                    goal_id,
-                    state == Qt.CheckState.Checked.value,
-                )
+        for category in categories:
+            self.goals_list_layout.addWidget(
+                self.label(category.upper(), "eyebrow")
             )
-            row.addWidget(check, 1)
+            category_goals = [g for g in goals if g["category"] == category]
+            if not category_goals:
+                self.goals_list_layout.addWidget(
+                    self.label("No goals in this category yet.", "muted")
+                )
 
-            if goal["completed_at"]:
-                row.addWidget(
-                    self.label(
-                        f"Completed {format_timestamp(goal['completed_at'])}",
-                        "timestamp",
+            for goal in category_goals:
+                row = QHBoxLayout()
+
+                check = QCheckBox(goal["title"])
+                check.setChecked(bool(goal["completed_at"]))
+                check.stateChanged.connect(
+                    lambda state, goal_id=goal["id"]:
+                    self.toggle_goal(
+                        goal_id,
+                        state == Qt.CheckState.Checked.value,
                     )
                 )
+                row.addWidget(check, 1)
 
-            delete_button = QPushButton("Remove")
-            delete_button.setObjectName("danger")
-            delete_button.setFixedWidth(76)
-            delete_button.clicked.connect(
-                lambda checked=False, goal_id=goal["id"]:
-                self.delete_goal(goal_id)
-            )
-            row.addWidget(delete_button)
+                category_picker = QComboBox()
+                category_picker.addItems(categories)
+                category_picker.setCurrentText(category)
+                category_picker.currentTextChanged.connect(
+                    lambda value, goal_id=goal["id"]:
+                    self.change_goal_category(goal_id, value)
+                )
+                row.addWidget(category_picker)
 
-            self.goals_list_layout.addLayout(row)
+                if goal["completed_at"]:
+                    row.addWidget(
+                        self.label(
+                            f"Completed {format_timestamp(goal['completed_at'])}",
+                            "timestamp",
+                        )
+                    )
+
+                delete_button = QPushButton("Remove")
+                delete_button.setObjectName("danger")
+                delete_button.setFixedWidth(112)
+                delete_button.clicked.connect(
+                    lambda checked=False, goal_id=goal["id"]:
+                    self.delete_goal(goal_id)
+                )
+                row.addWidget(delete_button)
+
+                self.goals_list_layout.addLayout(row)
+
+    def change_goal_category(self, goal_id, category):
+        self.store.set_goal_category(goal_id, category)
+        self.refresh_goals()
 
     def toggle_goal(self, goal_id, completed):
         self.store.set_goal_completed(goal_id, completed)
